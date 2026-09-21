@@ -17,8 +17,13 @@ on:
 
 # Cancela execuções antigas no GitHub se um novo commit chegar
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group:  github.workflow -{{ github.ref }}
   cancel-in-progress: true
+
+# Permissões necessárias para a Action conseguir comentar no Pull Request
+permissions:
+  pull-requests: write
+  contents: read
 
 jobs:
   terraform:
@@ -31,21 +36,50 @@ jobs:
 
       - uses: hashicorp/setup-terraform@v3
         with:
-          cli_config_credentials_token: ${{ secrets.TF_API_TOKEN }}
+          cli_config_credentials_token: \${{ secrets.TF_API_TOKEN }}
 
       - name: Terraform Init
         run: terraform init
 
-      # Roda APENAS em Pull Requests para validar o código
+      # Roda o Plan e salva a saída usando o "id: plan"
       - name: Terraform Plan
+        id: plan
         if: github.event_name == 'pull_request'
         run: terraform plan -no-color
         env:
-          TF_VAR_github_token: ${{ secrets.TF_GITHUB_PAT }}
+          TF_VAR_github_token: \${{ secrets.TF_GITHUB_PAT }}
+
+      # Posta o resultado do Plan como comentário no Pull Request
+      - name: Post Plan to PR
+        uses: actions/github-script@v7
+        if: github.event_name == 'pull_request'
+        with:
+          github-token: \${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const output = `#### Terraform Plan Status: 📝
+            
+            <details><summary>Clique aqui para ver o log do Plan</summary>
+            
+            \`\`\`hcl
+            \${process.env.PLAN}
+            \`\`\`
+            
+            </details>
+            
+            *Pushed por: @${context.actor}, Evento: \`\${context.eventName}\`*`;
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: output
+            })
+        env:
+          PLAN: "\${{ steps.plan.outputs.stdout }}"
 
       # Roda APENAS quando o código entra de fato na master/develop
       - name: Terraform Apply
         if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
         run: terraform apply -auto-approve
         env:
-          TF_VAR_github_token: ${{ secrets.TF_GITHUB_PAT }}
+          TF_VAR_github_token: \${{ secrets.TF_GITHUB_PAT }}
