@@ -1,0 +1,59 @@
+name: CI
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches:
+      - master
+      - develop
+  push:
+    branches:
+      - master
+      - develop
+
+# Concurrency control: cancela execuções antigas quando um novo push chega no mesmo PR,
+# economizando minutos de CI. O "group" identifica quais execuções competem entre si
+# (mesmo workflow + mesma branch/PR) e "cancel-in-progress" cancela a execução anterior
+# que ainda estava rodando quando a nova chega.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-test:
+    name: Build & Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Java 25
+        uses: actions/setup-java@v5
+        with:
+          distribution: 'temurin'
+          java-version: 25
+          cache: maven
+
+      # Build: agora usando "compile" em vez de "install", já que "install" empacota
+      # e instala o artefato no repositório Maven local (~/.m2), o que não é necessário
+      # aqui — o CI só precisa validar que compila e que os testes passam.
+      - name: Build
+        run: mvn -B compile
+        # -B = "batch mode": desliga output interativo do Maven, deixando os logs
+        # mais limpos e legíveis na aba Actions.
+
+      - name: Run Tests
+        run: mvn -B test
+
+      # Publicar relatório de testes: transforma os resultados JUnit em um
+      # resumo visual direto na aba "Checks" do PR (quais testes passaram/
+      # falharam), sem precisar abrir os logs brutos do Maven.
+      - name: Publish test report
+        uses: dorny/test-reporter@v1
+        if: always()
+        with:
+          name: JUnit Tests
+          path: target/surefire-reports/*.xml
+          reporter: java-junit
