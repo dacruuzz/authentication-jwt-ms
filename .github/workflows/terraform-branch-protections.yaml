@@ -6,6 +6,8 @@ on:
     branches:
       - master
       - develop
+    paths:
+      - 'terraform/**'
   push:
     branches:
       - master
@@ -31,8 +33,19 @@ jobs:
         with:
           cli_config_credentials_token: ${{ secrets.TF_API_TOKEN }}
 
-      - run: terraform init
+      - name: Terraform Init
+        run: terraform init
 
-      - run: terraform apply -auto-approve
+      # Roda APENAS em Pull Requests para validar o código
+      - name: Terraform Plan
+        if: github.event_name == 'pull_request'
+        run: terraform plan -no-color
+        env:
+          TF_VAR_github_token: ${{ secrets.TF_GITHUB_PAT }}
+
+      # Roda APENAS quando o código entra de fato na master/develop
+      - name: Terraform Apply
+        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+        run: terraform apply -auto-approve
         env:
           TF_VAR_github_token: ${{ secrets.TF_GITHUB_PAT }}
