@@ -14,7 +14,7 @@ on:
 # Concurrency control: cancela execuções antigas quando um novo push chega no mesmo PR,
 # economizando minutos de CI. O "group" identifica quais execuções competem entre si
 # (mesmo workflow + mesma branch/PR) e "cancel-in-progress" cancela a execução anterior
-# que ainda estava rodando quando a nova chega.
+# que ainda estava rodando quando a nova chega
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
