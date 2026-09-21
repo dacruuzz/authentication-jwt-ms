@@ -45,7 +45,7 @@ resource "github_branch_protection" "regras_ambientes" {
   # 2 e 3. Require status checks to pass & Require branches to be up to date before merging
   required_status_checks {
     strict   = true
-    contexts = []   # preencher com o nome do job (ex: "Build & Tests") quando o CI estiver rodando
+    contexts = [] # preencher com o nome do job (ex: "Build & Tests") quando o CI estiver rodando
   }
 
   # 4. Require conversation resolution before merging
@@ -56,7 +56,7 @@ resource "github_branch_protection" "regras_ambientes" {
 
   # 6. Bloquear force-push e deleção das branches protegidas
   allows_force_pushes = false
-  allows_deletions     = false
+  allows_deletions    = false
 
   # 7. Exigir histórico linear (squash/rebase, sem merge commits)
   required_linear_history = true
